@@ -1,10 +1,10 @@
 export const commands = [
     {
-        name: "Queue",
-        description: "Check if your level is in the verifier queue",
+        name: "queue",
+        description: "check if your level is in the verifier queue",
         options: [
             {
-                name: "Level URL",
+                name: "level url",
                 description: "",
                 required: true,
                 type: 3
