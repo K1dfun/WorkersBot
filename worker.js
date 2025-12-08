@@ -27,11 +27,21 @@ export default {
 
         // Slash command handler
         if (json.type == 2) {
-            const command_name = json.data.name;
+            const command_name = json.data.name.toLowerCase(); // lowercase to match Discord
 
-            if (command_name === "checklevel") {
+            if (command_name === "queue") { // match your commands.js
 
-                const url = json.data.options.find(o => o.name === "url").value;
+                const url = json.data.options.find(o => o.name === "Level URL")?.value;
+
+                if (!url) {
+                    return Response.json({
+                        type: 4,
+                        data: {
+                            content: "grab url needed",
+                            allowed_mentions: { parse: [] }
+                        }
+                    });
+                }
 
                 // Extract levelId and timestamp
                 const match = url.match(/level=([^:]+):(\d+)/);
@@ -39,7 +49,7 @@ export default {
                     return Response.json({
                         type: 4,
                         data: {
-                            content: "failed to fetch level",
+                            content: "no url?",
                             allowed_mentions: { parse: [] }
                         }
                     });
@@ -51,33 +61,42 @@ export default {
                 const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${timestamp}`;
 
                 // Fetch level data from Slin API
-                const apiResponse = await fetch(apiUrl);
-                if (!apiResponse.ok) {
+                try {
+                    const apiResponse = await fetch(apiUrl);
+                    if (!apiResponse.ok) {
+                        return Response.json({
+                            type: 4,
+                            data: {
+                                content: "couldn't fetch level details,
+                                allowed_mentions: { parse: [] }
+                            }
+                        });
+                    }
+
+                    const levelData = await apiResponse.json();
+                    const title = levelData.title || "title";
+                    const inQueue = "queued_for_verification" in levelData;
+
+                    const message = inQueue
+                        ? `"${title}" is submitted and waiting to be checked by a verifier.`
+                        : `"${title}" isn't in the verifier queue, you haven't submitted it OR it got denied.`;
+
                     return Response.json({
                         type: 4,
                         data: {
-                            content: "no data to show",
+                            content: message,
+                            allowed_mentions: { parse: [] }
+                        }
+                    });
+                } catch (err) {
+                    return Response.json({
+                        type: 4,
+                        data: {
+                            content: "failed",
                             allowed_mentions: { parse: [] }
                         }
                     });
                 }
-
-                const levelData = await apiResponse.json();
-
-                const title = levelData.title || "Unknown Title";
-                const inQueue = "queued_for_verification" in levelData;
-
-                const message = inQueue
-                    ? `"${title}" is submitted and waiting to be checked by a verifier.`
-                    : `"${title}" isn't in the verifier queue, you haven't submitted it OR it got denied.`;
-
-                return Response.json({
-                    type: 4,
-                    data: {
-                        content: message,
-                        allowed_mentions: { parse: [] }
-                    }
-                });
             }
         }
 
