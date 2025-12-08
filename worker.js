@@ -15,84 +15,72 @@ export default {
         );
 
         if (!isVerified) {
-            return new Response("invalid request signature", {status: 401});
+            return new Response("invalid request signature", { status: 401 });
         }
 
-        // Handle ping requests
         const json = JSON.parse(body);
+
+        // Discord PING
         if (json.type == 1) {
-            return Response.json({
-                type: 1
-            });
+            return Response.json({ type: 1 });
         }
 
-        // Handle command requests
+        // Slash command handler
         if (json.type == 2) {
             const command_name = json.data.name;
 
-            if (command_name === "basic") {
+            if (command_name === "checklevel") {
 
-                return Response.json({
-                    type: 4,
-                    data: {
-                        tts: false,
-                        content: "Success",
-                        embeds: [],
-                        allowed_mentions: { parse: [] }
-                    }
-                });
+                const url = json.data.options.find(o => o.name === "url").value;
 
-            } else if (command_name === "embed") {
-
-                const embed = {
-                    "type": "rich",
-                    "title": "Basic embed",
-                    "description": "This is a description",
-                    "color": 0x5865F2,
-                    "fields": [
-                        {
-                            "name": "Field 1",
-                            "value": "Value 1",
-                            "inline": true
-                        },
-                        {
-                            "name": "Field 2",
-                            "value": "Value 2",
-                            "inline": false
+                // Extract levelId and timestamp
+                const match = url.match(/level=([^:]+):(\d+)/);
+                if (!match) {
+                    return Response.json({
+                        type: 4,
+                        data: {
+                            content: "failed to fetch level",
+                            allowed_mentions: { parse: [] }
                         }
-                    ],
-                    "url": "https://discord.com"
-                };
+                    });
+                }
+
+                const levelId = match[1];
+                const timestamp = match[2];
+
+                const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${timestamp}`;
+
+                // Fetch level data from Slin API
+                const apiResponse = await fetch(apiUrl);
+                if (!apiResponse.ok) {
+                    return Response.json({
+                        type: 4,
+                        data: {
+                            content: "no data to show",
+                            allowed_mentions: { parse: [] }
+                        }
+                    });
+                }
+
+                const levelData = await apiResponse.json();
+
+                const title = levelData.title || "Unknown Title";
+                const inQueue = "queued_for_verification" in levelData;
+
+                const message = inQueue
+                    ? `"${title}" is submitted and waiting to be checked by a verifier.`
+                    : `"${title}" isn't in the verifier queue, you haven't submitted it OR it got denied.`;
 
                 return Response.json({
                     type: 4,
                     data: {
-                        tts: false,
-                        content: '',
-                        embeds: [embed],
+                        content: message,
                         allowed_mentions: { parse: [] }
                     }
                 });
-
-            } else if (command_name === "input") {
-
-                const input = json.data.options[0].value;
-
-                return Response.json({
-                    type: 4,
-                    data: {
-                        tts: false,
-                        content: `You entered: ${input}`,
-                        embeds: [],
-                        allowed_mentions: { parse: [] }
-                    }
-                });
-
             }
         }
 
-        // Handle other requests
-        return new Response("invalid request type", {status: 400});
-
+        return new Response("invalid request type", { status: 400 });
     },
 };
