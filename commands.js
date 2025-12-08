@@ -1,19 +1,11 @@
 export const commands = [
     {
-        name: "basic",
-        description: "Basic command",
-    },
-    {
-        name: "embed",
-        description: "Embed command",
-    },
-    {
-        name: "input",
-        description: "Command with input",
+        name: "Queue",
+        description: "Check if your level is in the verifier queue",
         options: [
             {
-                name: "input",
-                description: "String input",
+                name: "Level URL",
+                description: "",
                 required: true,
                 type: 3
             }
