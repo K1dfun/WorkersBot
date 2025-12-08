@@ -9,6 +9,8 @@ export const commands = [
                 required: true,
                 type: 3
             }
-        ]
+        ],
+        integration_types: [0, 1],
+        contexts: [0, 1, 2]
     }
 ];
