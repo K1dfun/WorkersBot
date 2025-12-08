@@ -60,14 +60,14 @@ export default {
 
                 const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${timestamp}`;
 
-                // Fetch level data from Slin API
+                // Vestria is really stupid and i hate github and i hate christmas - the grinch 
                 try {
                     const apiResponse = await fetch(apiUrl);
                     if (!apiResponse.ok) {
                         return Response.json({
                             type: 4,
                             data: {
-                                content: "couldn\'t fetch level details,"
+                                content: "couldn\'t fetch level details",
                                 allowed_mentions: { parse: [] }
                             }
                         });
