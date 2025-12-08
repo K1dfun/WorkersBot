@@ -67,7 +67,7 @@ export default {
                         return Response.json({
                             type: 4,
                             data: {
-                                content: "couldn\'t fetch level details,
+                                content: "couldn\'t fetch level details,"
                                 allowed_mentions: { parse: [] }
                             }
                         });
