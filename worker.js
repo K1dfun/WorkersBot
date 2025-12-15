@@ -38,7 +38,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "level url required.",
+              content: "level url required",
               allowed_mentions: { parse: [] }
             }
           });
@@ -49,7 +49,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "invalid level.",
+              content: "invalid level",
               allowed_mentions: { parse: [] }
             }
           });
@@ -71,7 +71,6 @@ export default {
           const tags = Array.isArray(levelData.tags) ? levelData.tags : [];
           const inQueue = "queued_for_verification" in levelData;
 
-          
           if (tags.includes("ok")) {
             return Response.json({
               type: 4,
@@ -111,6 +110,88 @@ export default {
             type: 4,
             data: {
               content: "couldn't get level information",
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+      }
+
+      if (command_name === "publish_time") {
+
+        const url = json.data.options?.find(o => o.name === "level_url")?.value;
+
+        if (!url) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "level url required",
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+
+        const match = url.match(/level=([^:]+):(\d+)/);
+        if (!match) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "invalid level",
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+
+        const levelId = match[1];
+        const levelTimestamp = match[2];
+
+        const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${levelTimestamp}`;
+
+        try {
+          const apiResponse = await fetch(apiUrl);
+          if (!apiResponse.ok) {
+            throw new Error("api fail");
+          }
+
+          const levelData = await apiResponse.json();
+          const title = levelData.title || "untitled level";
+          const rawTime = Number(levelData.verification_time);
+
+          if (!Number.isFinite(rawTime)) {
+            return Response.json({
+              type: 4,
+              data: {
+                content: "couldn't get time",
+                allowed_mentions: { parse: [] }
+              }
+            });
+          }
+
+          const minutes = Math.floor(rawTime / 60);
+          const seconds = Math.floor(rawTime % 60);
+          const paddedSeconds = String(seconds).padStart(2, "0");
+          const timeText = `${minutes}:${paddedSeconds}`;
+
+          return Response.json({
+            type: 4,
+            data: {
+              content: "",
+              embeds: [
+                {
+                  title: title,
+                  url: url,
+                  description: `**Publish time:** ${timeText}`,
+                  color: 0x57f287
+                }
+              ],
+              allowed_mentions: { parse: [] }
+            }
+          });
+
+        } catch (err) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "couldn't get publish time",
               allowed_mentions: { parse: [] }
             }
           });
