@@ -160,7 +160,7 @@ export default {
             return Response.json({
               type: 4,
               data: {
-                content: "couldn't get time",
+                content: "publish time not available?!",
                 allowed_mentions: { parse: [] }
               }
             });
@@ -168,8 +168,12 @@ export default {
 
           const minutes = Math.floor(rawTime / 60);
           const seconds = Math.floor(rawTime % 60);
+          const milliseconds = Math.floor((rawTime % 1) * 1000);
+
           const paddedSeconds = String(seconds).padStart(2, "0");
-          const timeText = `${minutes}:${paddedSeconds}`;
+          const paddedMilliseconds = String(milliseconds).padStart(3, "0");
+
+          const timeText = `${minutes}:${paddedSeconds}:${paddedMilliseconds}`;
 
           return Response.json({
             type: 4,
@@ -191,7 +195,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "couldn't get publish time",
+              content: "couldn't get time",
               allowed_mentions: { parse: [] }
             }
           });
