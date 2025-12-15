@@ -160,7 +160,7 @@ export default {
             return Response.json({
               type: 4,
               data: {
-                content: "publish time not available?!",
+                content: "failed to get time",
                 allowed_mentions: { parse: [] }
               }
             });
@@ -173,7 +173,7 @@ export default {
           const paddedSeconds = String(seconds).padStart(2, "0");
           const paddedMilliseconds = String(milliseconds).padStart(3, "0");
 
-          const timeText = `${minutes}:${paddedSeconds}:${paddedMilliseconds}`;
+          const timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds}`;
 
           return Response.json({
             type: 4,
