@@ -16,7 +16,7 @@ export default {
     );
 
     if (!isVerified) {
-      return new Response("invalid request signature", { status: 401 });
+      return new Response("no idea, { status: 401 });
     }
 
     const json = JSON.parse(body);
@@ -32,26 +32,24 @@ export default {
 
       if (command_name === "queue") {
 
-        // get level url option
         const url = json.data.options?.find(o => o.name === "level_url")?.value;
 
         if (!url) {
           return Response.json({
             type: 4,
             data: {
-              content: "level url required",
+              content: "level url required.",
               allowed_mentions: { parse: [] }
             }
           });
         }
 
-        // extract level id and timestamp
         const match = url.match(/level=([^:]+):(\d+)/);
         if (!match) {
           return Response.json({
             type: 4,
             data: {
-              content: "invalid url",
+              content: "invalid level url.",
               allowed_mentions: { parse: [] }
             }
           });
@@ -72,16 +70,25 @@ export default {
           const title = levelData.title || "untitled level";
           const inQueue = "queued_for_verification" in levelData;
 
-          const linkedTitle = `[${title}](${url})`;
-
-          const message = inQueue
-            ? `${linkedTitle} **is submitted** ✅`
-            : `${linkedTitle} **isn't submitted** ❌\n-# If you submitted your level, it got denied.`;
+          const embed = inQueue
+            ? {
+                title: title,
+                url: url,
+                description: "**is submitted** ",
+                color: 0x57f287
+              }
+            : {
+                title: title,
+                url: url,
+                description: "**isn't submitted** \n-# If you submitted your level, it got denied.",
+                color: 0xed4245
+              };
 
           return Response.json({
             type: 4,
             data: {
-              content: message,
+              content: "",
+              embeds: [embed],
               allowed_mentions: { parse: [] }
             }
           });
@@ -90,7 +97,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "failed getting level",
+              content: "couldn't get level information",
               allowed_mentions: { parse: [] }
             }
           });
