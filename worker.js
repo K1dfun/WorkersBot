@@ -49,7 +49,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "invalid level url.",
+              content: "invalid level.",
               allowed_mentions: { parse: [] }
             }
           });
@@ -68,7 +68,20 @@ export default {
 
           const levelData = await apiResponse.json();
           const title = levelData.title || "untitled level";
+          const tags = Array.isArray(levelData.tags) ? levelData.tags : [];
           const inQueue = "queued_for_verification" in levelData;
+
+          
+          if (tags.includes("ok")) {
+            return Response.json({
+              type: 4,
+              data: {
+                content: "level is already verified!",
+                flags: 64,
+                allowed_mentions: { parse: [] }
+              }
+            });
+          }
 
           const embed = inQueue
             ? {
@@ -105,6 +118,6 @@ export default {
       }
     }
 
-    return new Response("invalid request type", { status: 400 });
+    return new Response("incorrect request", { status: 400 });
   }
 };
