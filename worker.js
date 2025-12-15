@@ -145,6 +145,7 @@ export default {
         const levelTimestamp = match[2];
 
         const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${levelTimestamp}`;
+        const leaderboardUrl = `https://api.slin.dev/grab/v1/statistics_top_leaderboard/${levelId}/${levelTimestamp}`;
 
         try {
           const apiResponse = await fetch(apiUrl);
@@ -154,7 +155,29 @@ export default {
 
           const levelData = await apiResponse.json();
           const title = levelData.title || "untitled level";
-          const rawTime = Number(levelData.verification_time);
+
+          let rawTime = Number(levelData.verification_time);
+          let publishUser = null;
+          let useLeaderboardFormat = false;
+
+          try {
+            const lbResponse = await fetch(leaderboardUrl);
+            if (lbResponse.ok) {
+              const lbData = await lbResponse.json();
+              const entries = Array.isArray(lbData) ? lbData : [];
+
+              const verificationEntry = entries.find(
+                e => e && e.is_verification === true && Number.isFinite(Number(e.best_time))
+              );
+
+              if (verificationEntry) {
+                rawTime = Number(verificationEntry.best_time);
+                publishUser = verificationEntry.user_name || null;
+                useLeaderboardFormat = true;
+              }
+            }
+          } catch (err) {
+          }
 
           if (!Number.isFinite(rawTime)) {
             return Response.json({
@@ -168,12 +191,26 @@ export default {
 
           const minutes = Math.floor(rawTime / 60);
           const seconds = Math.floor(rawTime % 60);
-          const milliseconds = Math.floor((rawTime % 1) * 1000);
+          const fractional = rawTime % 1;
 
-          const paddedSeconds = String(seconds).padStart(2, "0");
-          const paddedMilliseconds = String(milliseconds).padStart(3, "0");
+          let timeText;
 
-          const timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds}`;
+          if (useLeaderboardFormat) {
+            const milliseconds4 = Math.floor(fractional * 10000);
+            const paddedSeconds = String(seconds).padStart(2, "0");
+            const paddedMilliseconds4 = String(milliseconds4).padStart(4, "0");
+            timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds4}`;
+          } else {
+            const milliseconds3 = Math.floor(fractional * 1000);
+            const paddedSeconds = String(seconds).padStart(2, "0");
+            const paddedMilliseconds3 = String(milliseconds3).padStart(3, "0");
+            timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds3}`;
+          }
+
+          let description = `**Publish time:** ${timeText}`;
+          if (publishUser) {
+            description += `\nBy: ${publishUser}`;
+          }
 
           return Response.json({
             type: 4,
@@ -183,7 +220,7 @@ export default {
                 {
                   title: title,
                   url: url,
-                  description: `**Publish time:** ${timeText}`,
+                  description: description,
                   color: 0x57f287
                 }
               ],
