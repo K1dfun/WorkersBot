@@ -4,7 +4,7 @@ import { Buffer } from "node:buffer";
 export default {
   async fetch(request, env, ctx) {
 
-    
+    // verify discord request
     const signature = request.headers.get("x-signature-ed25519");
     const timestamp = request.headers.get("x-signature-timestamp");
     const body = await request.text();
@@ -21,37 +21,37 @@ export default {
 
     const json = JSON.parse(body);
 
-    
+    // discord ping
     if (json.type === 1) {
       return Response.json({ type: 1 });
     }
 
-    
+    // slash command handler
     if (json.type === 2) {
       const command_name = json.data.name.toLowerCase();
 
       if (command_name === "queue") {
 
-        
+        // get level url option
         const url = json.data.options?.find(o => o.name === "level_url")?.value;
 
         if (!url) {
           return Response.json({
             type: 4,
             data: {
-              content: "GRAB level URL required.",
+              content: "level url required",
               allowed_mentions: { parse: [] }
             }
           });
         }
 
-       
+        // extract level id and timestamp
         const match = url.match(/level=([^:]+):(\d+)/);
         if (!match) {
           return Response.json({
             type: 4,
             data: {
-              content: "Invalid GRAB level URL.",
+              content: "invalid url",
               allowed_mentions: { parse: [] }
             }
           });
@@ -65,16 +65,18 @@ export default {
         try {
           const apiResponse = await fetch(apiUrl);
           if (!apiResponse.ok) {
-            throw new Error("API fetch failed");
+            throw new Error("api fail");
           }
 
           const levelData = await apiResponse.json();
-          const title = levelData.title || "Untitled level";
+          const title = levelData.title || "untitled level";
           const inQueue = "queued_for_verification" in levelData;
 
+          const linkedTitle = `[${title}](${url})`;
+
           const message = inQueue
-            ? `"${title}" is submitted and waiting to be checked by a verifier.`
-            : `"${title}" is not in the verifier queue. It may not be submitted or was denied.`;
+            ? `${linkedTitle} **is submitted** ✅`
+            : `${linkedTitle} **isn't submitted** ❌\n-# If you submitted your level, it got denied.`;
 
           return Response.json({
             type: 4,
@@ -88,7 +90,7 @@ export default {
           return Response.json({
             type: 4,
             data: {
-              content: "Failed to fetch level details.",
+              content: "failed getting level",
               allowed_mentions: { parse: [] }
             }
           });
