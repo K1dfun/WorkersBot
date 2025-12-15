@@ -16,7 +16,7 @@ export default {
     );
 
     if (!isVerified) {
-      return new Response("no idea, { status: 401 });
+      return new Response("no idea", { status: 401 });
     }
 
     const json = JSON.parse(body);
