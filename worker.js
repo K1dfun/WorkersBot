@@ -27,7 +27,7 @@ export default {
     }
 
     // slash command handler
-    if (json.type === 2) {
+    if (json.type == 2) {
       const command_name = json.data.name.toLowerCase();
 
       if (command_name === "queue") {
@@ -209,7 +209,7 @@ export default {
 
           let description = `**Publish time:** ${timeText}`;
           if (publishUser) {
-            description += `\nBy: ${publishUser}`;
+            description += `\n**By:** ${publishUser}`;
           }
 
           return Response.json({
@@ -238,8 +238,207 @@ export default {
           });
         }
       }
+
+      if (command_name === "leaderboard_search") {
+
+        const username = json.data.options?.find(o => o.name === "username")?.value;
+        const url = json.data.options?.find(o => o.name === "level_url")?.value;
+
+        if (!username) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "username required",
+              allowed_mentions: { parse: [] },
+              flags: 64
+            }
+          });
+        }
+
+        if (!url) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "level url required",
+              allowed_mentions: { parse: [] },
+              flags: 64
+            }
+          });
+        }
+
+        const match = url.match(/level=([^:]+):(\d+)/);
+        if (!match) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "invalid level",
+              allowed_mentions: { parse: [] },
+              flags: 64
+            }
+          });
+        }
+
+        const levelId = match[1];
+        const levelTimestamp = match[2];
+
+        const normalizedName = String(username).trim().toLowerCase();
+        const kvKey = `user:${normalizedName}`;
+
+        let cachedUser = null;
+        try {
+          if (env.USER_CACHE && typeof env.USER_CACHE.get === "function") {
+            const raw = await env.USER_CACHE.get(kvKey, { type: "json" });
+            if (raw && raw.user_id && raw.user_name) {
+              cachedUser = raw;
+            }
+          }
+        } catch (e) {
+        }
+
+        let userId = cachedUser?.user_id;
+        let userNameCanonical = cachedUser?.user_name;
+
+        if (!userId) {
+          const searchUrl = `https://api.slin.dev/grab/v1/list?max_format_version=18&type=user_name&search_term=${encodeURIComponent(username)}`;
+          try {
+            const searchResp = await fetch(searchUrl);
+            if (!searchResp.ok) {
+              throw new Error("couldn't search user");
+            }
+            const searchData = await searchResp.json();
+            const first = Array.isArray(searchData) && searchData.length > 0 ? searchData[0] : null;
+            if (!first || !first.user_id) {
+              return Response.json({
+                type: 4,
+                data: {
+                  content: "user not found",
+                  allowed_mentions: { parse: [] },
+                  flags: 64
+                }
+              });
+            }
+            userId = first.user_id;
+            userNameCanonical = first.user_name || username;
+
+            try {
+              if (env.USER_CACHE && typeof env.USER_CACHE.put === "function") {
+                await env.USER_CACHE.put(
+                  kvKey,
+                  JSON.stringify({ user_id: userId, user_name: userNameCanonical }),
+                  { expirationTtl: 60 * 60 * 24 * 7 }
+                );
+              }
+            } catch (e) {
+            }
+          } catch (err) {
+            return Response.json({
+              type: 4,
+              data: {
+                content: "failed search",
+                allowed_mentions: { parse: [] },
+                flags: 64
+              }
+            });
+          }
+        }
+
+        const detailsUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${levelTimestamp}`;
+        let title = "untitled level";
+        try {
+          const detResp = await fetch(detailsUrl);
+          if (detResp.ok) {
+            const detData = await detResp.json();
+            title = detData.title || title;
+          }
+        } catch (e) {
+        }
+
+        const bestUrl = `https://api.slin.dev/grab/v1/best_time_replay/${levelId}/${levelTimestamp}?user_id=${encodeURIComponent(userId)}`;
+        try {
+          const bestResp = await fetch(bestUrl);
+          if (!bestResp.ok) {
+            const text = await bestResp.text().catch(() => "");
+            if (text && text.toLowerCase().includes("user not found")) {
+              return Response.json({
+                type: 4,
+                data: {
+                  content: "no record",
+                  allowed_mentions: { parse: [] },
+                  flags: 64
+                }
+              });
+            }
+            throw new Error("time api fail");
+          }
+
+          let bestData;
+          const ct = bestResp.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            bestData = await bestResp.json();
+          } else {
+            const text = await bestResp.text();
+            if (text && text.toLowerCase().includes("user not found")) {
+              return Response.json({
+                type: 4,
+                data: {
+                  content: "no record",
+                  allowed_mentions: { parse: [] },
+                  flags: 64
+                }
+              });
+            }
+            throw new Error("idk");
+          }
+
+          const bestTime = Number(bestData?.best_time);
+          if (!Number.isFinite(bestTime)) {
+            return Response.json({
+              type: 4,
+              data: {
+                content: "no record",
+                allowed_mentions: { parse: [] },
+                flags: 64
+              }
+            });
+          }
+
+          const minutes = Math.floor(bestTime / 60);
+          const seconds = Math.floor(bestTime % 60);
+          const fractional = bestTime % 1;
+          const milliseconds3 = Math.floor(fractional * 1000);
+          const paddedSeconds = String(seconds).padStart(2, "0");
+          const paddedMilliseconds3 = String(milliseconds3).padStart(3, "0");
+          const timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds3}`;
+
+          const embed = {
+            title: title,
+            url: url,
+            description: `**${userNameCanonical}'s Time:** ${timeText}`,
+            color: 0xfee75c
+          };
+
+          return Response.json({
+            type: 4,
+            data: {
+              content: "",
+              embeds: [embed],
+              allowed_mentions: { parse: [] }
+            }
+          });
+        } catch (err) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "failed to get record",
+              allowed_mentions: { parse: [] },
+              flags: 64
+            }
+          });
+        }
+      }
     }
 
     return new Response("incorrect request", { status: 400 });
   }
 };
+// cooked
