@@ -1,105 +1,101 @@
 const nacl = require("tweetnacl");
-import { Buffer } from 'node:buffer';
+import { Buffer } from "node:buffer";
 
 export default {
-    async fetch(request, env, ctx) {
+  async fetch(request, env, ctx) {
 
-        // Handle invalid requests
-        const signature = request.headers.get("x-signature-ed25519");
-        const timestamp = request.headers.get("x-signature-timestamp");
-        const body = await request.text();
-        const isVerified = signature && timestamp && nacl.sign.detached.verify(
-            Buffer.from(timestamp + body),
-            Buffer.from(signature, "hex"),
-            Buffer.from(env.PUBLIC_KEY, "hex")
-        );
+    
+    const signature = request.headers.get("x-signature-ed25519");
+    const timestamp = request.headers.get("x-signature-timestamp");
+    const body = await request.text();
 
-        if (!isVerified) {
-            return new Response("invalid request signature", { status: 401 });
-        }
+    const isVerified = signature && timestamp && nacl.sign.detached.verify(
+      Buffer.from(timestamp + body),
+      Buffer.from(signature, "hex"),
+      Buffer.from(env.PUBLIC_KEY, "hex")
+    );
 
-        const json = JSON.parse(body);
+    if (!isVerified) {
+      return new Response("invalid request signature", { status: 401 });
+    }
 
-        // Discord PING
-        if (json.type == 1) {
-            return Response.json({ type: 1 });
-        }
+    const json = JSON.parse(body);
 
-        // Slash command handler
-        if (json.type == 2) {
-            const command_name = json.data.name.toLowerCase(); // lowercase to match Discord
+    
+    if (json.type === 1) {
+      return Response.json({ type: 1 });
+    }
 
-            if (command_name === "queue") { // match your commands.js
+    
+    if (json.type === 2) {
+      const command_name = json.data.name.toLowerCase();
 
-                const url = json.data.options.find(o => o.name === "Level URL")?.value;
+      if (command_name === "queue") {
 
-                if (!url) {
-                    return Response.json({
-                        type: 4,
-                        data: {
-                            content: "grab url needed",
-                            allowed_mentions: { parse: [] }
-                        }
-                    });
-                }
+        
+        const url = json.data.options?.find(o => o.name === "level_url")?.value;
 
-                // Extract levelId and timestamp
-                const match = url.match(/level=([^:]+):(\d+)/);
-                if (!match) {
-                    return Response.json({
-                        type: 4,
-                        data: {
-                            content: "no url?",
-                            allowed_mentions: { parse: [] }
-                        }
-                    });
-                }
-
-                const levelId = match[1];
-                const timestamp = match[2];
-
-                const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${timestamp}`;
-
-                // Vestria is really stupid and i hate github and i hate christmas - the grinch 
-                try {
-                    const apiResponse = await fetch(apiUrl);
-                    if (!apiResponse.ok) {
-                        return Response.json({
-                            type: 4,
-                            data: {
-                                content: "couldn\'t fetch level details",
-                                allowed_mentions: { parse: [] }
-                            }
-                        });
-                    }
-
-                    const levelData = await apiResponse.json();
-                    const title = levelData.title || "title";
-                    const inQueue = "queued_for_verification" in levelData;
-
-                    const message = inQueue
-                        ? `"${title}" is submitted and waiting to be checked by a verifier.`
-                        : `"${title}" isn't in the verifier queue, you haven't submitted it OR it got denied.`;
-
-                    return Response.json({
-                        type: 4,
-                        data: {
-                            content: message,
-                            allowed_mentions: { parse: [] }
-                        }
-                    });
-                } catch (err) {
-                    return Response.json({
-                        type: 4,
-                        data: {
-                            content: "failed",
-                            allowed_mentions: { parse: [] }
-                        }
-                    });
-                }
+        if (!url) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "GRAB level URL required.",
+              allowed_mentions: { parse: [] }
             }
+          });
         }
 
-        return new Response("invalid request type", { status: 400 });
-    },
+       
+        const match = url.match(/level=([^:]+):(\d+)/);
+        if (!match) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "Invalid GRAB level URL.",
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+
+        const levelId = match[1];
+        const levelTimestamp = match[2];
+
+        const apiUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${levelTimestamp}`;
+
+        try {
+          const apiResponse = await fetch(apiUrl);
+          if (!apiResponse.ok) {
+            throw new Error("API fetch failed");
+          }
+
+          const levelData = await apiResponse.json();
+          const title = levelData.title || "Untitled level";
+          const inQueue = "queued_for_verification" in levelData;
+
+          const message = inQueue
+            ? `"${title}" is submitted and waiting to be checked by a verifier.`
+            : `"${title}" is not in the verifier queue. It may not be submitted or was denied.`;
+
+          return Response.json({
+            type: 4,
+            data: {
+              content: message,
+              allowed_mentions: { parse: [] }
+            }
+          });
+
+        } catch (err) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "Failed to fetch level details.",
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+      }
+    }
+
+    return new Response("invalid request type", { status: 400 });
+  }
 };
