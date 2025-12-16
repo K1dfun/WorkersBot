@@ -436,6 +436,138 @@ export default {
           });
         }
       }
+
+      if (command_name === "leaderboard_record") {
+
+        const username = json.data.options?.find(o => o.name === "username")?.value;
+        const url = json.data.options?.find(o => o.name === "level_url")?.value;
+
+        if (!username || !url) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "username and level url required",
+              flags: 64,
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+
+        const match = url.match(/level=([^:]+):(\d+)/);
+        if (!match) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "invalid level",
+              flags: 64,
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+
+        const levelId = match[1];
+        const levelTimestamp = match[2];
+
+        const detailsUrl = `https://api.slin.dev/grab/v1/details/${levelId}/${levelTimestamp}`;
+        let title = "untitled level";
+        try {
+          const detResp = await fetch(detailsUrl);
+          if (detResp.ok) {
+            const detData = await detResp.json();
+            title = detData.title || title;
+          }
+        } catch (e) {
+        }
+
+        const leaderboardUrl = `https://api.slin.dev/grab/v1/statistics_top_leaderboard/${levelId}/${levelTimestamp}`;
+
+        try {
+          const lbRes = await fetch(leaderboardUrl);
+          if (!lbRes.ok) {
+            throw new Error("leaderboard fail");
+          }
+
+          const lbData = await lbRes.json();
+          const entries = Array.isArray(lbData) ? lbData : [];
+
+          const entry = entries.find(
+            e =>
+              typeof e.user_name === "string" &&
+              e.user_name.toLowerCase() === String(username).toLowerCase()
+          );
+
+          if (!entry) {
+            return Response.json({
+              type: 4,
+              data: {
+                content: "no record",
+                flags: 64,
+                allowed_mentions: { parse: [] }
+              }
+            });
+          }
+
+          const rawTime = Number(entry.best_time);
+          const minutes = Math.floor(rawTime / 60);
+          const seconds = Math.floor(rawTime % 60);
+          const milliseconds = Math.floor((rawTime % 1) * 1000);
+          const paddedSeconds = String(seconds).padStart(2, "0");
+          const paddedMilliseconds = String(milliseconds).padStart(3, "0");
+          const timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds}`;
+
+          const timestampNumber = Number(entry.timestamp);
+          const date = new Date(timestampNumber / 1000);
+
+          const day = date.getUTCDate();
+          const year = date.getUTCFullYear();
+          const hours = String(date.getUTCHours()).padStart(2, "0");
+          const minutesTime = String(date.getUTCMinutes()).padStart(2, "0");
+          const secondsTime = String(date.getUTCSeconds()).padStart(2, "0");
+
+          const monthNames = [
+            "January","February","March","April","May","June",
+            "July","August","September","October","November","December"
+          ];
+          const month = monthNames[date.getUTCMonth()];
+
+          const suffix =
+            day % 10 === 1 && day !== 11 ? "st" :
+            day % 10 === 2 && day !== 12 ? "nd" :
+            day % 10 === 3 && day !== 13 ? "rd" : "th";
+
+          const recordedOn = `${month} ${day}${suffix} ${year} | ${hours}:${minutesTime}:${secondsTime}`;
+
+          return Response.json({
+            type: 4,
+            data: {
+              content: "",
+              embeds: [
+                {
+                  title: title,
+                  url: url,
+                  description:
+                    `**${entry.user_name}'s record**\n` +
+                    `**Position:** ${entry.position + 1}\n` +
+                    `**Time:** ${timeText}\n` +
+                    `**Recorded on:** ${recordedOn}`,
+                  color: 0xfee75c
+                }
+              ],
+              allowed_mentions: { parse: [] }
+            }
+          });
+
+        } catch (err) {
+          return Response.json({
+            type: 4,
+            data: {
+              content: "failed to get leaderboard",
+              flags: 64,
+              allowed_mentions: { parse: [] }
+            }
+          });
+        }
+      }
     }
 
     return new Response("incorrect request", { status: 400 });
