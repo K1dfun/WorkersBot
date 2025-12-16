@@ -516,7 +516,7 @@ export default {
           const timeText = `${minutes}:${paddedSeconds}.${paddedMilliseconds}`;
 
           const timestampNumber = Number(entry.timestamp);
-          const date = new Date(timestampNumber / 1000);
+          const date = new Date(timestampNumber);
 
           const day = date.getUTCDate();
           const year = date.getUTCFullYear();
