@@ -48,5 +48,26 @@ export const commands = [
     ],
     integration_types: [0, 1],
     contexts: [0, 1, 2]
+  },
+
+  {
+    name: "leaderboard_record",
+    description: "view a user's record with extra stats",
+    options: [
+      {
+        name: "username",
+        description: "user name",
+        type: 3,
+        required: true
+      },
+      {
+        name: "level_url",
+        description: "level url",
+        type: 3,
+        required: true
+      }
+    ],
+    integration_types: [0, 1],
+    contexts: [0, 1, 2]
   }
 ];
