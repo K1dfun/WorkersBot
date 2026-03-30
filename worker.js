@@ -335,14 +335,16 @@ export default {
         let userNameCanonical = cachedUser?.user_name;
 
         if (!userId) {
-          const searchUrl = `https://api.slin.dev/grab/v1/list?max_format_version=18&type=user_name&search_term=${encodeURIComponent(username)}`;
+          const searchUrl = `https://api.slin.dev/grab/v1/list?max_format_version=false&type=user_name&search_term=${encodeURIComponent(username)}`;
           try {
             const searchResp = await signedFetch(searchUrl, grab_secret, env);
             if (!searchResp.ok) {
               throw new Error("couldn't search user");
             }
             const searchData = await searchResp.json();
-            const first = Array.isArray(searchData) && searchData.length > 0 ? searchData[0] : null;
+            const searchResults = Array.isArray(searchData) ? searchData : [];
+            const exactMatch = searchResults.find(u => u.user_name && u.user_name.toLowerCase() === normalizedName);
+            const first = exactMatch || searchResults[0] || null;
             if (!first || !first.user_id) {
               return Response.json({
                 type: 4,
@@ -630,14 +632,17 @@ export default {
         }
 
         if (!userId) {
-          const searchUrl = `https://api.slin.dev/grab/v1/list?max_format_version=19&type=user_name&search_term=${encodeURIComponent(String(username))}`;
+          const searchUrl = `https://api.slin.dev/grab/v1/list?max_format_version=false&type=user_name&search_term=${encodeURIComponent(String(username))}`;
           try {
             const searchResp = await signedFetch(searchUrl, grab_secret, env);
             if (!searchResp.ok) {
               throw new Error("search fail");
             }
             const searchData = await searchResp.json();
-            const first = Array.isArray(searchData) && searchData.length > 0 ? searchData[0] : null;
+            const normalizedUsername = String(username).trim().toLowerCase();
+            const searchResults = Array.isArray(searchData) ? searchData : [];
+            const exactMatch = searchResults.find(u => u.user_name && u.user_name.toLowerCase() === normalizedUsername);
+            const first = exactMatch || searchResults[0] || null;
             if (!first || !first.user_id) {
               return Response.json({
                 type: 4,
